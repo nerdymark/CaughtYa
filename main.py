@@ -1,14 +1,27 @@
-from machine import Pin, PWM, RTC, UART, I2C
-from time import sleep
+from machine import Pin, PWM, RTC, UART, I2C, ADC
+import time
 import random
+import uos
+import network
 from ssd1306 import SSD1306_I2C
+from secrets import secrets
+
+# wifi_ssid = secrets['ssid']
+# wifi_pass = secrets['key']
+# wlan = network.WLAN(network.STA_IF)
+# wlan.active(True)
+# wlan.connect(wifi_ssid, wifi_pass)
+
 
 # pin_button = Pin(20, mode=Pin.IN, pull=Pin.PULL_DOWN)
 pin_buzz = Pin(22, mode=Pin.IN, pull=Pin.PULL_UP)
 pin_beep = PWM(Pin(21))
 
+x_axis = ADC(Pin(27))
+y_axis = ADC(Pin(26))
+
 # Set up the UART for the GPS
-uart = UART(1, baudrate=4800, tx=Pin(4), rx=Pin(5))
+uart = UART(0, baudrate=9600)
 Pin(20, mode=Pin.IN, pull=Pin.PULL_DOWN)
 
 i2c=I2C(0,sda=Pin(8), scl=Pin(9), freq=400000)
@@ -17,6 +30,7 @@ oled.text("CaughtYa!", 0, 0)
 oled.text("(c)'23 nerdymark", 0, 16)
 oled.text("Binding to phone", 0, 32)
 oled.show()
+time.sleep(5)
 
 
 buzz_ticks = 0
@@ -29,9 +43,8 @@ init_lat = 37.808497
 init_lon = -122.410753
 init_alt = 1.25
 utc_offset = 8
-
-sleep(1)
-
+    
+    
 def move_location(lat, lon, alt):
     """
     Converts time, latitude, longitude, and altitude to a mock NMEA GGA string.
@@ -73,9 +86,9 @@ def move_location(lat, lon, alt):
 
 def press_button():
     Pin(20, mode=Pin.IN, pull=Pin.PULL_UP)
-    sleep(0.1)
+    time.sleep(0.1)
     Pin(20, mode=Pin.IN, pull=Pin.PULL_DOWN)
-    sleep(1)
+    time.sleep(1)
     Pin(20, mode=Pin.IN, pull=Pin.PULL_UP)
     
     oled.fill(0)
@@ -90,7 +103,7 @@ def press_button():
 def beep():
     pin_beep.freq(900)
     pin_beep.duty_u16(1000)
-    sleep(1)
+    time.sleep(1)
     pin_beep.duty_u16(0)
     oled.fill(0)
     oled.text("CaughtYa!", 0, 0)
@@ -98,11 +111,37 @@ def beep():
     oled.text("to phone?", 0, 32)
     oled.show()
     
-    
+
+time.sleep(5)
 press_button()
-sleep(1)
+time.sleep(1)
+
+# bluetooth_init()
 
 while True:
+    # print(uart.readline())
+    x_value = x_axis.read_u16()
+    y_value = y_axis.read_u16()
+    x_status = 'Middle'
+    y_status = 'Middle'
+    if x_value <= 600:
+        x_status = "left"
+        init_lat += 0.0001
+    elif x_value >= 60000:
+        x_status = "right"
+        init_lat -= 0.0001
+    if y_value <= 600:
+        y_status = "up"
+        init_lon += 0.0001
+    elif y_value >= 60000:
+        y_status = "down"
+        init_lon -= 0.0001
+    # if buttonValue == 0:
+    #     buttonStatus = "pressed"
+    
+    # print("X: " + str(x_value) + ", Y: " + str(y_value))
+
+    
     # pin_button.on() if pin_buzz.value() else pin_button.off()
     # Time the pin_buzz duration
     if pin_buzz.value() == 0:
@@ -127,21 +166,20 @@ while True:
     if global_ticks > 300000:
         # print(press_button())
         press_button()
-        sleep(0.1)
+        time.sleep(0.1)
         # print('Global_ticks is higher than 3000: {}'.format(global_ticks))
     if global_ticks > 300002:
         # print('Beeping: {}'.format(global_ticks))
         press_button()
         beep()
-        sleep(0.1)
+        time.sleep(0.1)
     
     # Jiggle the location a bit
     gps_lat = random.uniform(init_lat - 0.0001, init_lat + 0.0001)
     gps_lon = random.uniform(init_lon - 0.0001, init_lon + 0.0001)
     gps_alt = random.uniform(init_alt - 0.0001, init_alt + 0.0001)
     fake_loc = move_location(gps_lat, gps_lon, gps_alt)
-    uart.write(fake_loc)
+    # fake_loc = '{}\r\n'.format(fake_loc)
     print(fake_loc)
-
-    sleep(1)
-
+    uart.write(fake_loc)
+    time.sleep(1)
