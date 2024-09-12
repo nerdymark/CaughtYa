@@ -1,4 +1,5 @@
 # CaughtYa
+## CaughtYa has been archived, we no longer use this
 A micropython script to manage your Pokemon Go Plus
 
 ![CaughtYa](https://github.com/nerdymark/CaughtYa/blob/main/CaughtYa.jpg?raw=true) CaughtYa on a breadboard
